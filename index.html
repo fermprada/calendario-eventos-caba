@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Calendario de Eventos CABA</title>
+<style>
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --azul:      #1F4E78;
+  --azul-med:  #2E6DA4;
+  --azul-claro:#EBF3FB;
+  --verde:     #217346;
+  --amarillo:  #FFF2CC;
+  --rojo:      #C00000;
+  --rojo-claro:#FDECEA;
+  --gris-bg:   #F4F6F9;
+  --gris-borde:#D0D7E2;
+  --gris-text: #5A6474;
+  --blanco:    #FFFFFF;
+  --radio:     8px;
+  --sombra:    0 2px 12px rgba(31,78,120,.10);
+  --font:      'Segoe UI', system-ui, Arial, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--gris-bg); color: #1a2535; min-height: 100vh; }
+
+/* ── Header ──────────────────────────────────────────────── */
+header {
+  background: var(--azul);
+  color: #fff;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; }
+header h1 span { opacity: .65; font-weight: 400; }
+.tab-nav { display: flex; gap: 4px; }
+.tab-btn {
+  background: transparent; border: none; color: rgba(255,255,255,.7);
+  padding: 8px 16px; border-radius: 6px; font: 600 .85rem var(--font);
+  cursor: pointer; transition: background .15s, color .15s;
+}
+.tab-btn.active, .tab-btn:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+/* ── Layout ──────────────────────────────────────────────── */
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Tarjetas / contenedores ─────────────────────────────── */
+.card {
+  background: var(--blanco); border-radius: var(--radio);
+  box-shadow: var(--sombra); padding: 24px; margin-bottom: 20px;
+}
+.card-title {
+  font-size: 1rem; font-weight: 700; color: var(--azul);
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 2px solid var(--azul-claro);
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ── Buscador ────────────────────────────────────────────── */
+.search-bar {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+  margin-bottom: 20px;
+}
+.search-bar input, .search-bar select {
+  border: 1.5px solid var(--gris-borde); border-radius: var(--radio);
+  padding: 10px 14px; font: .95rem var(--font); background: var(--blanco);
+  transition: border-color .15s;
+}
+.search-bar input:focus, .search-bar select:focus {
+  outline: none; border-color: var(--azul-med);
+  box-shadow: 0 0 0 3px rgba(46,109,164,.15);
+}
+.search-bar input[type=text] { flex: 1; min-width: 220px; }
+.btn {
+  padding: 10px 20px; border-radius: var(--radio); border: none;
+  font: 600 .9rem var(--font); cursor: pointer; transition: opacity .15s, transform .1s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--azul); color: #fff; }
+.btn-primary:hover { opacity: .9; }
+.btn-success { background: var(--verde); color: #fff; }
+.btn-success:hover { opacity: .9; }
+.btn-outline { background: transparent; border: 1.5px solid var(--azul); color: var(--azul); }
+
+/* ── Tabla de eventos ────────────────────────────────────── */
+.eventos-meta { font-size: .85rem; color: var(--gris-text); margin-bottom: 12px; }
+.table-wrap { overflow-x: auto; border-radius: var(--radio); border: 1px solid var(--gris-borde); }
+table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+thead tr { background: var(--azul); color: #fff; }
+thead th { padding: 11px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--gris-borde); transition: background .1s; }
+tbody tr:hover { background: var(--azul-claro); }
+tbody td { padding: 10px 14px; vertical-align: top; }
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: .75rem; font-weight: 600; white-space: nowrap;
+}
+.badge-blue { background: var(--azul-claro); color: var(--azul); }
+.badge-green { background: #E8F5E9; color: var(--verde); }
+.empty-state {
+  text-align: center; padding: 48px 24px; color: var(--gris-text);
+}
+.empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+/* ── Paginación ──────────────────────────────────────────── */
+.pagination { display: flex; gap: 6px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+.pagination button {
+  min-width: 36px; height: 36px; border-radius: 6px; border: 1.5px solid var(--gris-borde);
+  background: var(--blanco); cursor: pointer; font: .85rem var(--font);
+  transition: background .1s, border-color .1s;
+}
+.pagination button.active { background: var(--azul); color: #fff; border-color: var(--azul); }
+.pagination button:hover:not(.active) { background: var(--azul-claro); }
+
+/* ── Formulario ──────────────────────────────────────────── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: .82rem; font-weight: 600; color: var(--azul); }
+label .req { color: var(--rojo); margin-left: 2px; }
+.form-control {
+  border: 1.5px solid var(--gris-borde); border-radius: var(--radio);
+  padding: 10px 13px; font: .95rem var(--font); background: var(--blanco);
+  transition: border-color .15s;
+}
+.form-control:focus { outline: none; border-color: var(--azul-med); box-shadow: 0 0 0 3px rgba(46,109,164,.15); }
+.form-control.error { border-color: var(--rojo); background: var(--rojo-claro); }
+.form-control.success { border-color: var(--verde); }
+.hint { font-size: .78rem; color: var(--gris-text); }
+
+/* ── Autocomplete dropdown ───────────────────────────────── */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 200;
+  background: var(--blanco); border: 1.5px solid var(--azul-med);
+  border-radius: var(--radio); box-shadow: var(--sombra);
+  max-height: 220px; overflow-y: auto; display: none;
+}
+.autocomplete-list.open { display: block; }
+.ac-item {
+  padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--gris-borde);
+  font-size: .875rem; transition: background .1s;
+}
+.ac-item:last-child { border-bottom: none; }
+.ac-item:hover, .ac-item.focused { background: var(--azul-claro); }
+.ac-item strong { color: var(--azul); }
+.ac-item small { color: var(--gris-text); display: block; }
+
+/* ── Alertas ─────────────────────────────────────────────── */
+.alert {
+  border-radius: var(--radio); padding: 12px 16px; font-size: .875rem;
+  display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px;
+}
+.alert-warning { background: var(--amarillo); border: 1px solid #F0C040; color: #7A5500; }
+.alert-danger  { background: var(--rojo-claro); border: 1px solid #F5A0A0; color: var(--rojo); }
+.alert-success { background: #E8F5E9; border: 1px solid #A5D6A7; color: var(--verde); }
+.alert-info    { background: var(--azul-claro); border: 1px solid #90CAF9; color: var(--azul); }
+.alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+/* ── Sugerencia inline ───────────────────────────────────── */
+.sugerencia-box {
+  background: var(--azul-claro); border: 1px solid #90CAF9;
+  border-radius: var(--radio); padding: 12px 16px; font-size: .85rem;
+  color: var(--azul); display: none; margin-top: 8px;
+}
+.sugerencia-box.visible { display: block; }
+.sugerencia-box p { margin-bottom: 6px; font-weight: 600; }
+.sugerencia-campos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.sugerencia-tag {
+  background: var(--blanco); border: 1px solid var(--azul-med);
+  border-radius: 20px; padding: 3px 10px; font-size: .78rem; color: var(--azul);
+}
+.btn-sm { padding: 6px 14px; font-size: .82rem; }
+
+/* ── Spinner ─────────────────────────────────────────────── */
+.spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+  border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── ID field ────────────────────────────────────────────── */
+.id-display {
+  background: var(--gris-bg); border: 1.5px solid var(--gris-borde);
+  border-radius: var(--radio); padding: 10px 13px; font: .95rem var(--font);
+  color: var(--gris-text); display: flex; align-items: center; justify-content: space-between;
+}
+.id-display .id-val { font-weight: 700; color: var(--azul); font-size: 1.1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📅 Calendario de Eventos CABA <span>— MICE</span></h1>
+  <nav class="tab-nav">
+    <button class="tab-btn active" onclick="showTab('buscar')">🔍 Buscar eventos</button>
+    <button class="tab-btn" onclick="showTab('cargar')">➕ Cargar evento</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ══════════ TAB: BUSCAR ══════════ -->
+<div id="tab-buscar" class="tab-panel active">
+
+  <div class="card">
+    <div class="card-title">🔍 Buscador de eventos</div>
+    <div class="search-bar">
+      <input type="text" id="q" placeholder="Nombre, sede, organizador, tema..." oninput="debounceBuscar()"/>
+      <select id="filtro-year" onchange="buscar()">
+        <option value="">Todos los años</option>
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+        <option value="2023">2023</option>
+      </select>
+      <select id="filtro-tipo" onchange="buscar()">
+        <option value="">Todos los tipos</option>
+        <option value="congreso">Congreso</option>
+        <option value="feria">Feria / Exposición</option>
+        <option value="conferencia">Conferencia</option>
+        <option value="encuentro">Encuentro</option>
+        <option value="jornada">Jornada</option>
+      </select>
+      <button class="btn btn-primary" onclick="buscar()">Buscar</button>
+    </div>
+    <div class="eventos-meta" id="eventos-meta">Cargando eventos...</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre del evento</th>
+            <th>Fecha inicio</th>
+            <th>Fecha fin</th>
+            <th>Sede</th>
+            <th>Organizador</th>
+            <th>Tipo</th>
+            <th>Tema</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-eventos">
+          <tr><td colspan="8"><div class="empty-state"><div class="icon">⏳</div>Cargando...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="paginacion"></div>
+  </div>
+
+</div>
+
+<!-- ══════════ TAB: CARGAR ══════════ -->
+<div id="tab-cargar" class="tab-panel">
+
+  <div class="card">
+    <div class="card-title">➕ Cargar nuevo evento</div>
+
+    <div id="alerta-duplicado" class="alert alert-danger" style="display:none">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <strong>Posible duplicado detectado</strong>
+        <div id="alerta-duplicado-detalle"></div>
+      </div>
+    </div>
+
+    <div id="alerta-advertencia" class="alert alert-warning" style="display:none">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <strong>Evento similar encontrado</strong>
+        <div id="alerta-advertencia-detalle"></div>
+      </div>
+    </div>
+
+    <div id="form-success" class="alert alert-success" style="display:none">
+      <span class="alert-icon">✅</span>
+      <div id="form-success-msg"></div>
+    </div>
+
+    <div class="form-grid" id="form-carga">
+
+      <!-- ID -->
+      <div class="form-group">
+        <label>ID del evento</label>
+        <div class="id-display">
+          <span>Se asigna automáticamente</span>
+          <span class="id-val" id="next-id-display">...</span>
+        </div>
+        <span class="hint">Podés modificarlo si necesitás usar un ID específico</span>
+        <input type="number" id="f-id" class="form-control" placeholder="Dejar vacío para auto-asignar" style="margin-top:6px"/>
+      </div>
+
+      <!-- NOMBRE -->
+      <div class="form-group">
+        <label>Nombre del evento <span class="req">*</span></label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="f-nombre" class="form-control"
+            placeholder="Escribí el nombre..." autocomplete="off"
+            oninput="onNombreInput()" onblur="setTimeout(()=>cerrarAC(),200)"/>
+          <div class="autocomplete-list" id="ac-list"></div>
+        </div>
+        <div class="sugerencia-box" id="sugerencia-box">
+          <p>💡 Evento recurrente detectado — datos del histórico:</p>
+          <div class="sugerencia-campos" id="sugerencia-campos"></div>
+          <button class="btn btn-outline btn-sm" onclick="aplicarSugerencia()">✅ Aplicar sugerencia</button>
+          <button class="btn btn-sm" style="background:var(--gris-bg);color:var(--gris-text)" onclick="descartarSugerencia()">✗ Descartar</button>
+        </div>
+      </div>
+
+      <!-- FECHAS -->
+      <div class="form-group">
+        <label>Fecha de inicio <span class="req">*</span></label>
+        <input type="date" id="f-fecha-inicio" class="form-control" onchange="checkDuplicado()"/>
+      </div>
+      <div class="form-group">
+        <label>Fecha de finalización <span class="req">*</span></label>
+        <input type="date" id="f-fecha-fin" class="form-control"/>
+      </div>
+
+      <!-- SEDE -->
+      <div class="form-group">
+        <label>Sede / Lugar <span class="req">*</span></label>
+        <input type="text" id="f-sede" class="form-control" placeholder="Nombre del lugar"/>
+      </div>
+
+      <!-- ORGANIZADOR -->
+      <div class="form-group">
+        <label>Entidad organizadora <span class="req">*</span></label>
+        <input type="text" id="f-entidad" class="form-control" placeholder="Organización responsable"/>
+      </div>
+
+      <!-- TIPO -->
+      <div class="form-group">
+        <label>Tipo de evento <span class="req">*</span></label>
+        <select id="f-tipo" class="form-control">
+          <option value="">— Seleccioná —</option>
+          <option>Congreso</option>
+          <option>Feria / Exposición</option>
+          <option>Conferencia</option>
+          <option>Encuentro</option>
+          <option>Jornada</option>
+          <option>Seminario</option>
+          <option>Workshop</option>
+          <option>Summit</option>
+          <option>Otro</option>
+        </select>
+      </div>
+
+      <!-- TEMA -->
+      <div class="form-group">
+        <label>Tema / Sector</label>
+        <input type="text" id="f-tema" class="form-control" placeholder="Ej: Salud, Tecnología, Agro..."/>
+      </div>
+
+      <!-- FRECUENCIA -->
+      <div class="form-group">
+        <label>Frecuencia</label>
+        <select id="f-frecuencia" class="form-control">
+          <option value="">— Seleccioná —</option>
+          <option>Anual</option>
+          <option>Bienal</option>
+          <option>Trienal</option>
+          <option>Semestral</option>
+          <option>Único</option>
+          <option>Irregular</option>
+        </select>
+      </div>
+
+      <!-- EDICION -->
+      <div class="form-group">
+        <label>Número de edición</label>
+        <input type="number" id="f-edicion" class="form-control" placeholder="Ej: 14"/>
+        <span class="hint" id="hint-edicion"></span>
+      </div>
+
+      <!-- ALCANCE -->
+      <div class="form-group">
+        <label>Alcance</label>
+        <select id="f-alcance" class="form-control">
+          <option value="">— Seleccioná —</option>
+          <option>Local</option>
+          <option>Nacional</option>
+          <option>Internacional</option>
+        </select>
+      </div>
+
+      <!-- ASISTENTES -->
+      <div class="form-group">
+        <label>Cantidad estimada de asistentes</label>
+        <input type="number" id="f-asistentes" class="form-control" placeholder="Ej: 500"/>
+      </div>
+
+      <!-- SITIO WEB -->
+      <div class="form-group">
+        <label>Sitio web del evento</label>
+        <input type="url" id="f-url" class="form-control" placeholder="https://..."/>
+      </div>
+
+      <!-- QUIEN CARGA -->
+      <div class="form-group">
+        <label>Tu nombre</label>
+        <input type="text" id="f-cargador" class="form-control" placeholder="Nombre de quien registra el evento"/>
+      </div>
+
+      <!-- OBSERVACIONES -->
+      <div class="form-group full">
+        <label>Observaciones</label>
+        <textarea id="f-obs" class="form-control" rows="3" placeholder="Información adicional, aclaraciones..."></textarea>
+      </div>
+
+    </div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; align-items:center">
+      <button class="btn btn-success" id="btn-enviar" onclick="enviarEvento()">
+        ➕ Cargar evento
+      </button>
+      <button class="btn btn-outline" onclick="limpiarForm()">Limpiar formulario</button>
+      <span id="form-error" style="color:var(--rojo); font-size:.875rem; font-weight:600"></span>
+    </div>
+  </div>
+
+</div>
+</main>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIGURACIÓN — reemplazá esta URL por la de tu Web App
+// ══════════════════════════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbzHenuUZkIK29rhsi4oK7uxuAaAlgyR9KWV62SLUIYITI0n1rLA6ql2ywIvtceqS8vh/exec';
+// Ejemplo: 'https://script.google.com/macros/s/AKfycb.../exec'
+
+// ══════════════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ══════════════════════════════════════════════════════════════
+let todosLosEventos = [];
+let eventosFiltrados = [];
+let paginaActual = 1;
+const POR_PAGINA = 20;
+let sugerenciaDatos = null;
+let debounceTimer = null;
+let acTimer = null;
+let duplicadoNivel = null;
+
+// ══════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════
+function showTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════
+// API helpers
+// ══════════════════════════════════════════════════════════════
+async function api(params) {
+  const url = API_URL + '?' + new URLSearchParams(params);
+  const res = await fetch(url);
+  return res.json();
+}
+async function apiPost(body) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return res.json();
+}
+
+// ══════════════════════════════════════════════════════════════
+// BUSCADOR
+// ══════════════════════════════════════════════════════════════
+async function cargarEventos() {
+  try {
+    const data = await api({ action: 'getEventos' });
+    todosLosEventos = data.eventos || [];
+    filtrarYMostrar();
+  } catch(e) {
+    document.getElementById('tabla-eventos').innerHTML =
+      `<tr><td colspan="8"><div class="empty-state"><div class="icon">⚠️</div>
+      No se pudieron cargar los eventos.<br><small>Verificá la URL de la API en la configuración.</small></div></td></tr>`;
+    document.getElementById('eventos-meta').textContent = '';
+  }
+}
+
+function debounceBuscar() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(buscar, 350);
+}
+
+function buscar() {
+  const q = document.getElementById('q').value.toLowerCase().trim();
+  const year = document.getElementById('filtro-year').value;
+  const tipo = document.getElementById('filtro-tipo').value.toLowerCase();
+
+  eventosFiltrados = todosLosEventos.filter(ev => {
+    const texto = Object.values(ev).join(' ').toLowerCase();
+    const matchQ = !q || q.split(' ').every(t => texto.includes(t));
+    const matchYear = !year || (ev['Fecha inicio'] || '').startsWith(year);
+    const matchTipo = !tipo || (ev['Tipo de evento'] || '').toLowerCase().includes(tipo);
+    return matchQ && matchYear && matchTipo;
+  });
+
+  paginaActual = 1;
+  renderTabla();
+}
+
+function renderTabla() {
+  const total = eventosFiltrados.length;
+  const inicio = (paginaActual - 1) * POR_PAGINA;
+  const pagina = eventosFiltrados.slice(inicio, inicio + POR_PAGINA);
+
+  document.getElementById('eventos-meta').textContent =
+    total === 0 ? 'Sin resultados.' :
+    `Mostrando ${inicio+1}–${Math.min(inicio+POR_PAGINA, total)} de ${total} eventos`;
+
+  if (pagina.length === 0) {
+    document.getElementById('tabla-eventos').innerHTML =
+      `<tr><td colspan="8"><div class="empty-state"><div class="icon">🔍</div>No se encontraron eventos con esos criterios.</div></td></tr>`;
+    document.getElementById('paginacion').innerHTML = '';
+    return;
+  }
+
+  const fmtFecha = f => f ? f.split('-').reverse().join('/') : '—';
+
+  document.getElementById('tabla-eventos').innerHTML = pagina.map(ev => `
+    <tr>
+      <td><span class="badge badge-blue">${ev['ID'] || '—'}</span></td>
+      <td><strong>${esc(ev['Nombre evento'] || '')}</strong></td>
+      <td style="white-space:nowrap">${fmtFecha(ev['Fecha inicio'])}</td>
+      <td style="white-space:nowrap">${fmtFecha(ev['Fecha de finalización'])}</td>
+      <td>${esc(ev['Sede'] || '—')}</td>
+      <td>${esc(ev['Entidad organizadora'] || '—')}</td>
+      <td>${ev['Tipo de evento'] ? `<span class="badge badge-green">${esc(ev['Tipo de evento'])}</span>` : '—'}</td>
+      <td>${esc(ev['Tema'] || '—')}</td>
+    </tr>`).join('');
+
+  // Paginación
+  const totalPags = Math.ceil(total / POR_PAGINA);
+  let pags = '';
+  for (let i = 1; i <= totalPags; i++) {
+    if (totalPags > 10 && i > 3 && i < totalPags - 1 && Math.abs(i - paginaActual) > 2) {
+      if (i === 4 || i === totalPags - 2) pags += `<button disabled>…</button>`;
+      continue;
+    }
+    pags += `<button class="${i === paginaActual ? 'active' : ''}" onclick="irPagina(${i})">${i}</button>`;
+  }
+  document.getElementById('paginacion').innerHTML =
+    `<button onclick="irPagina(${paginaActual-1})" ${paginaActual===1?'disabled':''}>‹</button>` +
+    pags +
+    `<button onclick="irPagina(${paginaActual+1})" ${paginaActual===totalPags?'disabled':''}>›</button>`;
+}
+
+function irPagina(p) {
+  const total = Math.ceil(eventosFiltrados.length / POR_PAGINA);
+  if (p < 1 || p > total) return;
+  paginaActual = p;
+  renderTabla();
+  document.querySelector('main').scrollIntoView({ behavior: 'smooth' });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════════════════════════════════════════════════════════
+// FORMULARIO — ID automático
+// ══════════════════════════════════════════════════════════════
+async function cargarNextId() {
+  try {
+    const data = await api({ action: 'nextId' });
+    document.getElementById('next-id-display').textContent = data.id || '?';
+    document.getElementById('f-id').placeholder = 'Dejar vacío = ' + (data.id || 'auto');
+  } catch(e) { /* silencioso */ }
+}
+
+// ══════════════════════════════════════════════════════════════
+// AUTOCOMPLETE + SUGERENCIA DE HISTÓRICO
+// ══════════════════════════════════════════════════════════════
+let acTimeout = null;
+
+function onNombreInput() {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  clearTimeout(acTimeout);
+  ocultarAlertas();
+
+  if (nombre.length < 3) {
+    cerrarAC();
+    ocultarSugerencia();
+    return;
+  }
+
+  // Autocomplete local desde eventos ya cargados
+  const matches = todosLosEventos
+    .filter(ev => (ev['Nombre evento'] || '').toLowerCase().includes(nombre.toLowerCase()))
+    .slice(0, 8);
+
+  if (matches.length > 0) {
+    const list = document.getElementById('ac-list');
+    list.innerHTML = matches.map((ev, i) =>
+      `<div class="ac-item" onmousedown="seleccionarAC(${i})" data-idx="${i}">
+        <strong>${esc(ev['Nombre evento'])}</strong>
+        <small>${ev['Fecha inicio'] ? ev['Fecha inicio'].slice(0,7).split('-').reverse().join('/') : ''} — ${esc(ev['Sede'] || '')}</small>
+      </div>`
+    ).join('');
+    list.dataset.matches = JSON.stringify(matches.map(ev => ev['Nombre evento']));
+    list.classList.add('open');
+  } else {
+    cerrarAC();
+  }
+
+  // Consulta de sugerencia al histórico (debounced)
+  acTimeout = setTimeout(() => buscarSugerencia(nombre), 600);
+
+  // Check duplicado también
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(checkDuplicado, 800);
+}
+
+function seleccionarAC(idx) {
+  const list = document.getElementById('ac-list');
+  const matches = JSON.parse(list.dataset.matches || '[]');
+  if (matches[idx]) {
+    document.getElementById('f-nombre').value = matches[idx];
+    cerrarAC();
+    buscarSugerencia(matches[idx]);
+    checkDuplicado();
+  }
+}
+
+function cerrarAC() {
+  document.getElementById('ac-list').classList.remove('open');
+}
+
+async function buscarSugerencia(nombre) {
+  try {
+    const data = await api({ action: 'sugerencia', nombre });
+    if (data.sugerencia) {
+      sugerenciaDatos = data.sugerencia;
+      mostrarSugerencia(data.sugerencia);
+    } else {
+      ocultarSugerencia();
+    }
+  } catch(e) { ocultarSugerencia(); }
+}
+
+function mostrarSugerencia(d) {
+  const box = document.getElementById('sugerencia-box');
+  const campos = document.getElementById('sugerencia-campos');
+
+  const tags = [];
+  if (d.sede) tags.push(`📍 Sede: ${d.sede}`);
+  if (d.entidad) tags.push(`🏢 Organizador: ${d.entidad}`);
+  if (d.tipo) tags.push(`📋 Tipo: ${d.tipo}`);
+  if (d.tema) tags.push(`🏷 Tema: ${d.tema}`);
+  if (d.frecuencia) tags.push(`🔄 Frecuencia: ${d.frecuencia}`);
+  if (d.numEdicionSugerido) tags.push(`#️⃣ Edición sugerida: ${d.numEdicionSugerido}`);
+
+  if (tags.length === 0) { ocultarSugerencia(); return; }
+
+  campos.innerHTML = tags.map(t => `<span class="sugerencia-tag">${esc(t)}</span>`).join('');
+  box.classList.add('visible');
+}
+
+function ocultarSugerencia() {
+  document.getElementById('sugerencia-box').classList.remove('visible');
+  sugerenciaDatos = null;
+}
+
+function aplicarSugerencia() {
+  if (!sugerenciaDatos) return;
+  const d = sugerenciaDatos;
+  if (d.sede && !document.getElementById('f-sede').value) setVal('f-sede', d.sede);
+  if (d.entidad && !document.getElementById('f-entidad').value) setVal('f-entidad', d.entidad);
+  if (d.tipo) setSelectVal('f-tipo', d.tipo);
+  if (d.tema && !document.getElementById('f-tema').value) setVal('f-tema', d.tema);
+  if (d.frecuencia) setSelectVal('f-frecuencia', d.frecuencia);
+  if (d.numEdicionSugerido && !document.getElementById('f-edicion').value) {
+    setVal('f-edicion', d.numEdicionSugerido);
+    document.getElementById('hint-edicion').textContent = '💡 Sugerido según el histórico';
+  }
+  ocultarSugerencia();
+  document.getElementById('form-success').style.display = 'flex';
+  document.getElementById('form-success-msg').textContent = '✅ Datos del histórico aplicados. Revisá y completá lo que falte.';
+  setTimeout(() => document.getElementById('form-success').style.display = 'none', 4000);
+}
+
+function descartarSugerencia() { ocultarSugerencia(); }
+
+function setVal(id, val) { document.getElementById(id).value = val; document.getElementById(id).classList.add('success'); }
+function setSelectVal(id, val) {
+  const sel = document.getElementById(id);
+  for (let opt of sel.options) {
+    if (opt.value.toLowerCase().includes(val.toLowerCase()) || val.toLowerCase().includes(opt.value.toLowerCase())) {
+      sel.value = opt.value; return;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DETECCIÓN DE DUPLICADO
+// ══════════════════════════════════════════════════════════════
+async function checkDuplicado() {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const fecha = document.getElementById('f-fecha-inicio').value;
+  const sede = document.getElementById('f-sede').value.trim();
+  const entidad = document.getElementById('f-entidad').value.trim();
+  if (!nombre || nombre.length < 4) { ocultarAlertas(); return; }
+
+  try {
+    const data = await api({ action: 'checkDuplicado', nombre, fecha, sede, entidad });
+    if (data.duplicado) {
+      duplicadoNivel = data.nivel;
+      const c = data.coincidencia;
+      const detalle = `"${c.nombre}" — ${c.fecha}${c.sede ? (' — ' + c.sede) : ''}`;
+      if (data.nivel === 'ALTO') {
+        document.getElementById('alerta-duplicado-detalle').textContent = 'Coincide con: ' + detalle;
+        document.getElementById('alerta-duplicado').style.display = 'flex';
+        document.getElementById('alerta-advertencia').style.display = 'none';
+      } else {
+        document.getElementById('alerta-advertencia-detalle').textContent = 'Similar a: ' + detalle + '. Verificá antes de cargar.';
+        document.getElementById('alerta-advertencia').style.display = 'flex';
+        document.getElementById('alerta-duplicado').style.display = 'none';
+      }
+    } else {
+      duplicadoNivel = null;
+      ocultarAlertas();
+    }
+  } catch(e) { /* silencioso */ }
+}
+
+function ocultarAlertas() {
+  document.getElementById('alerta-duplicado').style.display = 'none';
+  document.getElementById('alerta-advertencia').style.display = 'none';
+  duplicadoNivel = null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ENVÍO DEL FORMULARIO
+// ══════════════════════════════════════════════════════════════
+async function enviarEvento() {
+  const errEl = document.getElementById('form-error');
+  errEl.textContent = '';
+  document.getElementById('form-success').style.display = 'none';
+
+  // Validación de obligatorios
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const fechaIni = document.getElementById('f-fecha-inicio').value;
+  const fechaFin = document.getElementById('f-fecha-fin').value;
+  const sede = document.getElementById('f-sede').value.trim();
+  const entidad = document.getElementById('f-entidad').value.trim();
+  const tipo = document.getElementById('f-tipo').value;
+
+  if (!nombre) { errEl.textContent = 'El nombre del evento es obligatorio.'; return; }
+  if (!fechaIni) { errEl.textContent = 'La fecha de inicio es obligatoria.'; return; }
+  if (!fechaFin) { errEl.textContent = 'La fecha de finalización es obligatoria.'; return; }
+  if (!sede) { errEl.textContent = 'La sede es obligatoria.'; return; }
+  if (!entidad) { errEl.textContent = 'La entidad organizadora es obligatoria.'; return; }
+  if (!tipo) { errEl.textContent = 'El tipo de evento es obligatorio.'; return; }
+
+  // Bloquear si duplicado ALTO
+  if (duplicadoNivel === 'ALTO') {
+    errEl.textContent = '⛔ No se puede cargar: hay un posible duplicado de alta confianza. Revisá el evento existente antes de continuar.';
+    return;
+  }
+
+  const btn = document.getElementById('btn-enviar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Cargando...';
+
+  const payload = {
+    'ID': document.getElementById('f-id').value || '',
+    'Nombre evento': nombre,
+    'Fecha inicio': fechaIni,
+    'Fecha de finalización': fechaFin,
+    'Sede': sede,
+    'Entidad organizadora': entidad,
+    'Tipo de evento': tipo,
+    'Tema': document.getElementById('f-tema').value.trim(),
+    'Frecuencia': document.getElementById('f-frecuencia').value,
+    'Numero edicion': document.getElementById('f-edicion').value,
+    'Alcance': document.getElementById('f-alcance').value,
+    'Cantidad de participantes': document.getElementById('f-asistentes').value,
+    'URL': document.getElementById('f-url').value.trim(),
+    'Creado por': document.getElementById('f-cargador').value.trim() || 'Web',
+    'Observaciones': document.getElementById('f-obs').value.trim()
+  };
+
+  try {
+    const result = await apiPost({ action: 'cargarEvento', data: payload });
+
+    btn.disabled = false;
+    btn.innerHTML = '➕ Cargar evento';
+
+    if (result.ok) {
+      document.getElementById('form-success').style.display = 'flex';
+      document.getElementById('form-success-msg').innerHTML =
+        `<strong>Evento cargado correctamente.</strong> ID asignado: <strong>${result.id}</strong>.<br>` +
+        (result.alerta ? `<span style="color:orange">⚠️ ${result.mensaje}</span>` : 'Sin alertas de duplicado.');
+      limpiarForm();
+      // Recargar lista de eventos
+      await cargarEventos();
+      await cargarNextId();
+    } else {
+      errEl.textContent = '❌ Error: ' + (result.error || 'No se pudo cargar el evento.');
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '➕ Cargar evento';
+    errEl.textContent = '❌ Error de conexión. Verificá la URL de la API.';
+  }
+}
+
+function limpiarForm() {
+  ['f-id','f-nombre','f-fecha-inicio','f-fecha-fin','f-sede','f-entidad',
+   'f-tema','f-edicion','f-asistentes','f-url','f-cargador','f-obs'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('error','success');
+  });
+  document.getElementById('f-tipo').value = '';
+  document.getElementById('f-frecuencia').value = '';
+  document.getElementById('f-alcance').value = '';
+  document.getElementById('hint-edicion').textContent = '';
+  document.getElementById('form-error').textContent = '';
+  ocultarAlertas();
+  ocultarSugerencia();
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  if (API_URL === 'TU_URL_DE_WEB_APP_AQUI') {
+    document.getElementById('eventos-meta').innerHTML =
+      '⚠️ <strong>Configuración pendiente:</strong> reemplazá <code>TU_URL_DE_WEB_APP_AQUI</code> en el archivo index.html con la URL de tu Web App de Apps Script.';
+    document.getElementById('tabla-eventos').innerHTML =
+      `<tr><td colspan="8"><div class="empty-state"><div class="icon">⚙️</div>Configuración pendiente</div></td></tr>`;
+    return;
+  }
+  cargarEventos();
+  cargarNextId();
+});
+</script>
+</body>
+</html>
