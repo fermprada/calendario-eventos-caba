@@ -858,13 +858,6 @@ function limpiarForm() {
 // INIT
 // ══════════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
-  if (!API_URL || API_URL === 'TU_URL_DE_WEB_APP_AQUI') {
-    document.getElementById('eventos-meta').innerHTML =
-      '⚠️ <strong>Configuración pendiente:</strong> reemplazá <code>TU_URL_DE_WEB_APP_AQUI</code> en el archivo index.html con la URL de tu Web App de Apps Script.';
-    document.getElementById('tabla-eventos').innerHTML =
-      `<tr><td colspan="8"><div class="empty-state"><div class="icon">⚙️</div>Configuración pendiente</div></td></tr>`;
-    return;
-  }
   cargarEventos();
   cargarNextId();
 });
